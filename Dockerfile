@@ -14,4 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 ENV TESSERACT_PATH=/usr/bin/tesseract
 
+ENTRYPOINT ["bash", "entrypoint.sh"]
+
 CMD ["bash", "entrypoint.sh"]
