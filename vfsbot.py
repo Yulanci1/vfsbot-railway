@@ -1,28 +1,38 @@
-import os
 import time
-import pytesseract
+import os
 import requests
-from PIL import Image
-from dotenv import load_dotenv
+from vfs_checker import check_slots  # Предположим, ты вынес парсинг в модуль
+from telegram_send import send_to_telegram
 
-load_dotenv()
+# Все города VFS, где можно подать на визу во Францию
+LOCATIONS = {
+    "Москва": "moscow",
+    "Санкт-Петербург": "saint-petersburg",
+    "Екатеринбург": "ekaterinburg",
+    "Казань": "kazan",
+    "Новосибирск": "novosibirsk",
+    "Нижний Новгород": "nizhniy-novgorod",
+    "Самара": "samara",
+    "Ростов-на-Дону": "rostov-on-don",
+    "Краснодар": "krasnodar"
+}
 
-TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
-SLEEP = int(os.getenv("SLEEP_INTERVAL", 300))
+CHECKED_URLS = set()  # Чтобы не дублировать сообщения
 
-def send_telegram(msg):
-    url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
+SLEEP_INTERVAL = int(os.getenv("SLEEP_INTERVAL", 300))
 
-def check_slots():
-    # Здесь вставь реальный код проверки VFS — можно использовать selenium или requests
-    send_telegram("🔍 Слотов пока нет...")
-
-if __name__ == "__main__":
-    while True:
+while True:
+    for city_name, city_code in LOCATIONS.items():
         try:
-            check_slots()
+            print(f"🔍 Проверка слотов: {city_name}")
+            result = check_slots(city_code, center="TLS")
+            if result["available"]:
+                if result["url"] not in CHECKED_URLS:
+                    message = f"✅ Найден слот во Франции:\n📍 {city_name}\n🔗 {result['url']}"
+                    send_to_telegram(message)
+                    CHECKED_URLS.add(result["url"])
+            else:
+                print(f"❌ Нет слотов в {city_name}")
         except Exception as e:
-            send_telegram(f"⚠️ Ошибка: {str(e)}")
-        time.sleep(SLEEP)
+            print(f"⚠️ Ошибка при проверке {city_name}: {e}")
+    time.sleep(SLEEP_INTERVAL)
